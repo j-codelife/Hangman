@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hangman</title>
+
+  <!-- Gamey fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <h1><span class="logo">Hangman</span></h1>
+
+    <section class="status">
+      <div id="gallows" aria-live="polite" class="mono"></div>
+      <div class="info">
+        <div>Lives: <span id="lives">6</span></div>
+        <div>Wrong: <span id="wrong"></span></div>
+      </div>
+    </section>
+
+    <section class="word">
+      <div id="masked" class="masked" aria-live="polite"></div>
+    </section>
+
+    <section class="keyboard" id="keyboard" aria-label="On-screen keyboard"></section>
+
+    <section class="controls">
+      <label for="guess">Guess a letter (a–z) or the whole word:</label>
+      <div class="row">
+        <input id="guess" type="text" maxlength="32" autocomplete="off" />
+        <button id="btnGuess">Guess</button>
+        <button id="btnReset">New Game</button>
+      </div>
+      <p id="message" role="status" class="message"></p>
+    </section>
+
+    <div id="overlay" class="overlay" aria-hidden="true"></div>
+  </main>
+
+  <div id="confetti"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
