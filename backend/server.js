@@ -70,7 +70,7 @@ app.post('/api/login', (req, res) => {
 // Auth middleware for API routes (except login)
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api')) return next();
-  if (req.path === '/api/login') return next();
+  if (req.path === '/api/login' || req.path === '/api/health') return next();
   const auth = req.headers.authorization || '';
   if (!auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
   const token = auth.slice(7);
@@ -151,8 +151,8 @@ app.post("/api/games/:id/guess", (req, res) => {
   return res.json(publicState(g, req.params.id));
 });
 
-// Health check
-app.get("/health", (_, res) => res.json({ ok: true }));
+// Health check (accept both /health and /api/health for frontend probes)
+app.get(["/health", "/api/health"], (_, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`API on http://localhost:${PORT}`));

@@ -1,0 +1,5 @@
+
+> hangman-backend@1.0.0 start
+> node server.js
+
+API on http://localhost:3001
