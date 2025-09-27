@@ -75,7 +75,7 @@
         localStorage.setItem('hangman_token', payload.token);
         localStorage.setItem('hangman_user', payload.username);
   showMsg('Welcome back! Loading the game…', 'ok');
-  setTimeout(() => { window.location = '/'; }, 250);
+        setTimeout(() => { window.location.assign('index.html'); }, 250);
       } catch (error) {
         showMsg(error.message || 'Login error', 'bad');
       }
