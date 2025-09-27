@@ -1,15 +1,41 @@
 // script.js — Frontend wired to backend API with neon UI, keyboard, sounds, confetti
 // Make sure your HTML has elements with IDs referenced below.
 
-// use relative API path so it works when served from a static server with a proxy or same-origin
-const API_BASE = "/api";
+// prefer explicit backend URL to avoid relative-path/proxy issues during development
+const API_BASE = (() => {
+  const rawOverride = window.__HANGMAN_API_BASE__ || localStorage.getItem('hangman_api_base');
+  if (rawOverride) return rawOverride.replace(/\/+$/, '') || '/api';
+
+  const origin = window.location && window.location.origin ? window.location.origin : '';
+  if (!origin || origin === 'null') return 'http://localhost:3001/api';
+
+  const normalizedOrigin = origin.replace(/\/+$/, '');
+  if (/localhost:\d+$/.test(normalizedOrigin) && !normalizedOrigin.endsWith(':3001')) {
+    return 'http://localhost:3001/api';
+  }
+  return `${normalizedOrigin}/api`;
+})();
 
 // basic auth token (stored by login page)
-const TOKEN = localStorage.getItem('hangman_token');
+let TOKEN = localStorage.getItem('hangman_token');
+const USERNAME = localStorage.getItem('hangman_user');
+// show username if present
+const elUser = document.getElementById('userName');
+if (elUser) elUser.textContent = USERNAME ? `Hi, ${USERNAME}` : '';
+
+// logout button
+const btnLogoutEl = document.getElementById('btnLogout');
+if (btnLogoutEl) btnLogoutEl.addEventListener('click', () => {
+  localStorage.removeItem('hangman_token');
+  localStorage.removeItem('hangman_user');
+  TOKEN = null;
+  window.location.href = '/login.html';
+});
+
 if (!TOKEN) {
   // redirect to a simple login page
   if (!location.pathname.endsWith('/login.html')) {
-    location.href = '/frontend/login.html';
+    location.href = '/login.html';
   }
 }
 
@@ -164,30 +190,58 @@ function emitConfetti(count = 24) {
 }
 
 // --- API ---
+const apiPath = (path) => `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+
+async function apiRequest(path, options = {}) {
+  const { method = 'GET', headers = {}, body, auth = true, ...rest } = options;
+  const finalHeaders = new Headers(headers);
+  let payload = body;
+
+  if (auth && TOKEN && !finalHeaders.has('Authorization')) {
+    finalHeaders.set('Authorization', `Bearer ${TOKEN}`);
+  }
+
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  const isBlob = typeof Blob !== 'undefined' && body instanceof Blob;
+  const isArrayBuffer = typeof ArrayBuffer !== 'undefined' && body instanceof ArrayBuffer;
+  const isUrlParams = typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams;
+  const shouldJsonify = body !== undefined && !isFormData && !isBlob && !isArrayBuffer && !isUrlParams && typeof body === 'object';
+
+  if (shouldJsonify) {
+    if (!finalHeaders.has('Content-Type')) {
+      finalHeaders.set('Content-Type', 'application/json');
+    }
+    payload = JSON.stringify(body);
+  }
+
+  const response = await fetch(apiPath(path), {
+    method,
+    headers: finalHeaders,
+    body: payload,
+    ...rest
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  const parseAsJson = contentType.includes('application/json');
+  const data = parseAsJson ? await response.json().catch(() => null) : await response.text().catch(() => null);
+
+  if (!response.ok) {
+    const detail = data && typeof data === 'object' ? (data.error || data.message || JSON.stringify(data)) : data;
+    const error = new Error(detail ? `${response.status} ${detail}` : `Request failed ${response.status}`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
 async function apiNewGame() {
-  const res = await fetch(`${API_BASE}/games`, { method: "POST", headers: { 'Authorization': `Bearer ${TOKEN}` } });
-  if (!res.ok) throw new Error(`New game failed: ${res.status}`);
-  return res.json();
+  return apiRequest('/games', { method: 'POST' });
 }
 
 async function apiGuess(id, guess) {
-  const res = await fetch(`${API_BASE}/games/${id}/guess`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ guess })
-  });
-  // include token
-  const headers = { "Content-Type": "application/json", 'Authorization': `Bearer ${TOKEN}` };
-  const res2 = await fetch(`${API_BASE}/games/${id}/guess`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ guess })
-  });
-  // use res2 in place of res below
-  if (!res2.ok) throw new Error(`Guess failed: ${res2.status}`);
-  return res2.json();
-  if (!res.ok) throw new Error(`Guess failed: ${res.status}`);
-  return res.json();
+  return apiRequest(`/games/${id}/guess`, { method: 'POST', body: { guess } });
 }
 
 // --- Game flow ---
@@ -201,7 +255,7 @@ async function newGame() {
     render();
   } catch (e) {
     console.error(e);
-    showMsg("Backend not reachable. Is it running on :3001?", "bad");
+    showMsg(e.message || "Backend not reachable. Is it running on :3001?", "bad");
   }
 }
 
@@ -250,7 +304,7 @@ async function submitGuess(raw) {
     }
   } catch (e) {
     console.error(e);
-    showMsg("Request failed. Check backend logs.", "bad");
+    showMsg(e.message || "Request failed. Check backend logs.", "bad");
   } finally {
     elGuess.value = "";
     elGuess.focus();
@@ -272,3 +326,9 @@ window.addEventListener("keydown", (e) => {
 // Boot
 buildKeyboard();
 newGame();
+
+// expose computed API base so other pages (login.html) can reuse the same base
+try {
+  window.__HANGMAN_API_BASE__ = API_BASE;
+  window.HANGMAN_API_BASE = API_BASE;
+} catch (_) {}

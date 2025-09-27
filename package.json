@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start-frontend": "npx http-server -c-1 . -p 8080",
+  "start-frontend": "node ./dev-serve.js",
     "start-backend": "node backend/server.js",
     "dev": "npx concurrently \"npm:dev-backend\" \"npm:start-frontend\"",
     "dev-backend": "cd backend && npm run dev"

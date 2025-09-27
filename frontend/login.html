@@ -4,37 +4,86 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Hangman — Login</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; display:flex; min-height:100vh; align-items:center; justify-content:center; }
-    .card { width:320px; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.08); }
-    input { width:100%; padding:8px; margin-top:8px; }
-    button { margin-top:12px; padding:8px 12px; }
-  </style>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <div class="card">
-    <h2>Welcome</h2>
-    <p>Enter a username to start playing.</p>
-    <input id="username" placeholder="username" />
-    <button id="btn">Login</button>
-    <p id="msg"></p>
-  </div>
+<body class="login-page">
+  <main class="login-card" role="main">
+    <header class="login-header">
+      <h1 class="logo">Hangman</h1>
+      <p class="login-tagline">Log in to keep your streak and unlock the gallows.</p>
+    </header>
+    <pre class="login-gallows mono" aria-hidden="true">  +---+
+  |   |
+      |
+      |
+      |
+      |
+=========</pre>
+    <form class="login-form" novalidate>
+      <label for="username">Username</label>
+      <input id="username" class="login-input" name="username" type="text" autocomplete="nickname" maxlength="40" placeholder="e.g. codebreaker" required />
+      <button type="submit" class="primary">Enter the game</button>
+    </form>
+    <p id="msg" class="login-message" role="status" aria-live="polite"></p>
+  </main>
   <script>
-    const elU = document.getElementById('username');
-    const btn = document.getElementById('btn');
+    const form = document.querySelector('.login-form');
+    const elUsername = document.getElementById('username');
     const msg = document.getElementById('msg');
-    btn.addEventListener('click', async () => {
-      const username = (elU.value||'').trim();
-      if (!username) { msg.textContent='Enter a username'; return; }
+
+    const showMsg = (text, type = '') => {
+      msg.textContent = text;
+      msg.className = `login-message ${type}`.trim();
+    };
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const username = (elUsername.value || '').trim();
+      if (!username) {
+        showMsg('Enter a username to begin.', 'bad');
+        elUsername.focus();
+        return;
+      }
+
       try {
-        const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username }) });
-        if (!res.ok) throw new Error('Login failed');
-        const j = await res.json();
-        localStorage.setItem('hangman_token', j.token);
-        localStorage.setItem('hangman_user', j.username);
-        window.location = '/';
-      } catch (e) {
-        msg.textContent = e.message || 'Login error';
+        showMsg('Signing you in…');
+        const base = (window.__HANGMAN_API_BASE__ || 'http://localhost:3001/api').replace(/\/+$/, '');
+        const res = await fetch(base + '/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+
+        let payload = null;
+        try {
+          payload = await res.json();
+        } catch (err) {
+          payload = null;
+        }
+
+        if (!res.ok) {
+          const message = payload && (payload.error || payload.message);
+          throw new Error(message || 'Login failed');
+        }
+
+        if (!payload || !payload.token || !payload.username) {
+          throw new Error('Unexpected response from server');
+        }
+
+        localStorage.setItem('hangman_token', payload.token);
+        localStorage.setItem('hangman_user', payload.username);
+  showMsg('Welcome back! Loading the game…', 'ok');
+  setTimeout(() => { window.location = '/'; }, 250);
+      } catch (error) {
+        showMsg(error.message || 'Login error', 'bad');
+      }
+    });
+
+    elUsername.addEventListener('input', () => {
+      if (msg.textContent) {
+        showMsg('');
       }
     });
   </script>
