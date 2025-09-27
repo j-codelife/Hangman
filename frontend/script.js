@@ -1,48 +1,32 @@
-// ----- words & constants -----
-const WORDS = [
-  "computer","javascript","variable","debug","interface",
-  "inheritance","polymorphism","algorithm","compiler","arraylist",
-  "recursion","exception","package","constructor","function","object"
-];
-const MAX_LIVES = 6;
-const LETTERS = "abcdefghijklmnopqrstuvwxyz".split("");
+// === CONFIG ===
+// If you deploy the API elsewhere, change this:
+const API_BASE = "http://localhost:3001/api";
 
-// ----- elements -----
-const elMasked = document.getElementById("masked");
-const elLives = document.getElementById("lives");
-const elWrong = document.getElementById("wrong");
-const elMsg = document.getElementById("message");
-const elGuess = document.getElementById("guess");
-const btnGuess = document.getElementById("btnGuess");
-const btnReset = document.getElementById("btnReset");
-const elGallows = document.getElementById("gallows");
+// === ELEMENTS ===
+const elMasked   = document.getElementById("masked");
+const elLives    = document.getElementById("lives");
+const elWrong    = document.getElementById("wrong");
+const elMsg      = document.getElementById("message");
+const elGuess    = document.getElementById("guess");
+const btnGuess   = document.getElementById("btnGuess");
+const btnReset   = document.getElementById("btnReset");
+const elGallows  = document.getElementById("gallows");
 const elKeyboard = document.getElementById("keyboard");
-const elOverlay = document.getElementById("overlay");
-const elMaskedBox = document.querySelector(".masked");
-const elApp = document.querySelector(".app");
+const elOverlay  = document.getElementById("overlay");
+const elMaskedBox= document.querySelector(".masked");
+const elApp      = document.querySelector(".app");
 const elConfetti = document.getElementById("confetti");
 
-// ----- game state -----
-let word = "";
-let masked = [];
-let lives = MAX_LIVES;
-let wrong = new Set();
-let correct = new Set();
-let audioCtx; // lazily created
+// === STATE ===
+let gameId = null;
+let state = { masked: "", lives: 6, wrong: [], status: "playing" };
+const LETTERS = "abcdefghijklmnopqrstuvwxyz".split("");
 
-// ----- helpers -----
-function pickWord() {
-  return WORDS[Math.floor(Math.random() * WORDS.length)].toLowerCase();
+// === UI HELPERS ===
+function showMsg(text = "", cls = "") {
+  elMsg.className = `message ${cls}`;
+  elMsg.textContent = text;
 }
-function maskWord(w) {
-  return w.split("").map(ch => /[a-z]/i.test(ch) ? "_" : ch);
-}
-function reveal(ch) {
-  let hit = false;
-  for (let i = 0; i < word.length; i++) if (word[i] === ch) { masked[i] = ch; hit = true; }
-  return hit;
-}
-function isRevealed() { return masked.every(c => c !== "_"); }
 
 function gallowsFor(l) {
   const stages = [
@@ -99,156 +83,167 @@ function gallowsFor(l) {
   const idx = Math.max(0, Math.min(6, l));
   return stages[6 - idx];
 }
+
 function render() {
-  elMasked.textContent = masked.join(" ");
-  elLives.textContent = lives;
-  elWrong.textContent = [...wrong].join(" ");
-  elGallows.textContent = gallowsFor(lives);
+  elMasked.textContent = state.masked;         // masked is already spaced by backend ("_ _ _")
+  elLives.textContent  = state.lives;
+  elWrong.textContent  = (state.wrong || []).join(" ");
+  elGallows.textContent = gallowsFor(state.lives);
+  updateKeyboard();
 }
-function showMsg(text, type = "") {
-  elMsg.className = `message ${type}`;
-  elMsg.textContent = text;
-}
-function buildKeyboard(){
+
+// On-screen keyboard
+function buildKeyboard() {
   elKeyboard.innerHTML = "";
-  LETTERS.forEach(ch=>{
+  LETTERS.forEach(ch => {
     const b = document.createElement("button");
     b.className = "key";
     b.textContent = ch;
     b.dataset.key = ch;
-    b.addEventListener("click", ()=> { handleGuess(ch); updateKeyboard(); });
+    b.addEventListener("click", () => submitGuess(ch));
     elKeyboard.appendChild(b);
   });
 }
-function updateKeyboard(){
-  document.querySelectorAll(".key").forEach(b=>{
+
+function updateKeyboard() {
+  const gameOver = state.status !== "playing";
+  const wrongSet = new Set(state.wrong || []);
+  // For “correct” marking, we infer from visible letters in masked (not perfect but solid)
+  const maskedLetters = new Set(state.masked.replace(/\s+/g, "").split("").filter(c => c !== "_"));
+
+  document.querySelectorAll(".key").forEach(b => {
     const ch = b.dataset.key;
-    const used = correct.has(ch) || wrong.has(ch);
-    b.disabled = used || lives===0 || isRevealed();
+    const used = wrongSet.has(ch) || maskedLetters.has(ch);
+    b.disabled = used || gameOver;
     b.classList.toggle("used", used);
-    b.classList.toggle("ok", correct.has(ch));
-    b.classList.toggle("bad", wrong.has(ch));
+    b.classList.toggle("ok", maskedLetters.has(ch));
+    b.classList.toggle("bad", wrongSet.has(ch));
   });
+
+  // Disable input when game is over
+  elGuess.disabled = gameOver;
+  btnGuess.disabled = gameOver;
 }
 
-function playTone(freq=440, dur=0.08){
-  try{
+// Tiny synth sounds (no files)
+let audioCtx;
+function playTone(freq = 440, dur = 0.08) {
+  try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = "square"; o.frequency.value = freq;
-    g.gain.value = 0.07; o.connect(g); g.connect(audioCtx.destination);
-    o.start(); setTimeout(()=>{ o.stop(); }, dur*1000);
-  }catch(e){ /* ignore if autoplay blocked */ }
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "square"; osc.frequency.value = freq;
+    gain.gain.value = 0.07;
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); setTimeout(() => osc.stop(), dur * 1000);
+  } catch (e) { /* ignore */ }
 }
-function emitConfetti(count=24){
+
+function emitConfetti(count = 24) {
   const EMO = ["🎉","✨","⭐","🎈","💥","🟣","🟡","🟢","🔷","🔶"];
   const w = window.innerWidth;
-  for(let i=0;i<count;i++){
+  for (let i = 0; i < count; i++) {
     const s = document.createElement("span");
     s.className = "conf";
-    s.textContent = EMO[Math.floor(Math.random()*EMO.length)];
-    s.style.left = (Math.random()*w) + "px";
-    s.style.animationDuration = (700 + Math.random()*800) + "ms";
+    s.textContent = EMO[Math.floor(Math.random() * EMO.length)];
+    s.style.left = (Math.random() * w) + "px";
+    s.style.animationDuration = (700 + Math.random() * 800) + "ms";
     elConfetti.appendChild(s);
-    setTimeout(()=>s.remove(), 1600);
+    setTimeout(() => s.remove(), 1600);
   }
 }
 
-// ----- core flow -----
-function resetGame(){
-  word = pickWord();
-  masked = maskWord(word);
-  lives = MAX_LIVES;
-  wrong.clear(); correct.clear();
-  elGuess.value = ""; showMsg("");
-  elApp.classList.remove("flash-bad");
-  render(); buildKeyboard(); updateKeyboard();
+// === API CALLS ===
+async function apiNewGame() {
+  const res = await fetch(`${API_BASE}/games`, { method: "POST" });
+  if (!res.ok) throw new Error(`New game failed: ${res.status}`);
+  return res.json();
 }
 
-function handleGuess(raw) {
-  const guess = raw.trim().toLowerCase();
+async function apiGuess(id, guess) {
+  const res = await fetch(`${API_BASE}/games/${id}/guess`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ guess })
+  });
+  if (!res.ok) throw new Error(`Guess failed: ${res.status}`);
+  return res.json();
+}
+
+// === GAME FLOW ===
+async function newGame() {
+  try {
+    const data = await apiNewGame();
+    gameId = data.gameId;
+    state = data;
+    showMsg("");
+    elApp.classList.remove("flash-bad");
+    render();
+  } catch (e) {
+    showMsg("Backend not reachable. Is it running on :3001?", "bad");
+    console.error(e);
+  }
+}
+
+async function submitGuess(raw) {
+  if (!gameId) return;
+  const guess = String(raw || elGuess.value || "").trim().toLowerCase();
   if (!guess) return;
 
-  if (/^[a-z]$/.test(guess)) {
-    const ch = guess;
-    if (correct.has(ch) || wrong.has(ch)) {
-      showMsg(`You already tried '${ch}'.`, "bad");
-      return;
-    }
-    if (reveal(ch)) {
-      correct.add(ch);
-      render(); updateKeyboard();
-      showMsg(`Nice! '${ch}' is in the word.`, "ok");
-      elMaskedBox.classList.add("glow");
-      setTimeout(()=>elMaskedBox.classList.remove("glow"), 250);
-      playTone(660, .08);
+  const before = { masked: state.masked, lives: state.lives };
 
-      if (isRevealed()) {
-        showMsg(`You got it! The word was "${word}".`, "ok");
-        emitConfetti();
-        elOverlay.classList.add("show");
-        setTimeout(()=>elOverlay.classList.remove("show"), 800);
-        playTone(880, .1); setTimeout(()=>playTone(1175,.12),120);
-      }
-    } else {
-      wrong.add(ch); lives--;
-      render(); updateKeyboard();
-      showMsg(`Nope. '${ch}' is not in the word.`, "bad");
-      elApp.classList.add("shake"); setTimeout(()=>elApp.classList.remove("shake"), 450);
-      elApp.classList.add("flash-bad"); setTimeout(()=>elApp.classList.remove("flash-bad"), 200);
-      playTone(220, .09);
+  try {
+    const data = await apiGuess(gameId, guess);
+    state = data;
+    render();
 
-      if (lives === 0) {
-        masked = word.split(""); render(); updateKeyboard();
-        showMsg(`Out of lives! The word was "${word}".`, "bad");
-        playTone(130, .12);
-      }
-    }
-  } else if (/^[a-z]+$/.test(guess)) {
-    // full-word
-    if (guess === word) {
-      masked = word.split(""); render(); updateKeyboard();
-      showMsg(`Exact match! "${word}" 🎉`, "ok");
+    const improved = state.masked !== before.masked;
+    const lostLife = state.lives < before.lives;
+
+    if (state.status === "won") {
+      showMsg(`You got it!`, "ok");
       emitConfetti();
       elOverlay.classList.add("show");
-      setTimeout(()=>elOverlay.classList.remove("show"), 800);
-      playTone(880, .1); setTimeout(()=>playTone(1175,.12),120);
+      setTimeout(() => elOverlay.classList.remove("show"), 800);
+      playTone(880, .1); setTimeout(() => playTone(1175, .12), 120);
+    } else if (state.status === "lost") {
+      showMsg(`Out of lives!`, "bad");
+      elApp.classList.add("flash-bad"); setTimeout(() => elApp.classList.remove("flash-bad"), 400);
+      playTone(130, .12);
     } else {
-      lives--; render(); updateKeyboard();
-      showMsg("Not it. You lost a life.", "bad");
-      elApp.classList.add("shake"); setTimeout(()=>elApp.classList.remove("shake"), 450);
-      elApp.classList.add("flash-bad"); setTimeout(()=>elApp.classList.remove("flash-bad"), 200);
-      playTone(220, .09);
-      if (lives === 0) {
-        masked = word.split(""); render(); updateKeyboard();
-        showMsg(`Out of lives! The word was "${word}".`, "bad");
-        playTone(130, .12);
+      if (improved) {
+        elMaskedBox.classList.add("glow");
+        setTimeout(() => elMaskedBox.classList.remove("glow"), 250);
+        showMsg(`Nice! '${guess}' is in the word.`, "ok");
+        playTone(660, .08);
+      } else if (lostLife) {
+        elApp.classList.add("shake"); setTimeout(() => elApp.classList.remove("shake"), 450);
+        elApp.classList.add("flash-bad"); setTimeout(() => elApp.classList.remove("flash-bad"), 200);
+        showMsg(`Nope. '${guess}' is not in the word.`, "bad");
+        playTone(220, .09);
       }
     }
-  } else {
-    showMsg("Please enter letters only.", "bad");
+  } catch (e) {
+    showMsg("Request failed. Check backend logs.", "bad");
+    console.error(e);
+  } finally {
+    elGuess.value = "";
+    elGuess.focus();
   }
 }
 
-// ----- UI wiring -----
-btnGuess.addEventListener("click", () => {
-  handleGuess(elGuess.value);
-  elGuess.value = "";
-  elGuess.focus();
-});
-btnReset.addEventListener("click", resetGame);
-elGuess.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    handleGuess(elGuess.value);
-    elGuess.value = "";
-  }
-});
-// type letters anywhere (unless typing in the input)
+// === WIRING ===
+btnGuess.addEventListener("click", () => submitGuess());
+btnReset.addEventListener("click", newGame);
+elGuess.addEventListener("keydown", (e) => { if (e.key === "Enter") submitGuess(); });
+
+// Type anywhere (unless focused in input)
 window.addEventListener("keydown", (e) => {
   if (!/^[a-z]$/i.test(e.key)) return;
   if (document.activeElement === elGuess) return;
-  handleGuess(e.key);
+  submitGuess(e.key);
 });
 
-resetGame(); // boot
+// Build UI + start
+buildKeyboard();
+newGame();
