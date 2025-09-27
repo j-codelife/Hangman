@@ -1,28 +1,39 @@
-// === CONFIG ===
-// If you deploy the API elsewhere, change this:
-const API_BASE = "http://localhost:3001/api";
+// script.js — Frontend wired to backend API with neon UI, keyboard, sounds, confetti
+// Make sure your HTML has elements with IDs referenced below.
 
-// === ELEMENTS ===
-const elMasked   = document.getElementById("masked");
-const elLives    = document.getElementById("lives");
-const elWrong    = document.getElementById("wrong");
-const elMsg      = document.getElementById("message");
-const elGuess    = document.getElementById("guess");
-const btnGuess   = document.getElementById("btnGuess");
-const btnReset   = document.getElementById("btnReset");
-const elGallows  = document.getElementById("gallows");
-const elKeyboard = document.getElementById("keyboard");
-const elOverlay  = document.getElementById("overlay");
-const elMaskedBox= document.querySelector(".masked");
-const elApp      = document.querySelector(".app");
-const elConfetti = document.getElementById("confetti");
+// use relative API path so it works when served from a static server with a proxy or same-origin
+const API_BASE = "/api";
 
-// === STATE ===
+// basic auth token (stored by login page)
+const TOKEN = localStorage.getItem('hangman_token');
+if (!TOKEN) {
+  // redirect to a simple login page
+  if (!location.pathname.endsWith('/login.html')) {
+    location.href = '/frontend/login.html';
+  }
+}
+
+// --- Element refs ---
+const elMasked    = document.getElementById("masked");
+const elLives     = document.getElementById("lives");
+const elWrong     = document.getElementById("wrong");
+const elMsg       = document.getElementById("message");
+const elGuess     = document.getElementById("guess");
+const btnGuess    = document.getElementById("btnGuess");
+const btnReset    = document.getElementById("btnReset");
+const elGallows   = document.getElementById("gallows");
+const elKeyboard  = document.getElementById("keyboard");
+const elOverlay   = document.getElementById("overlay");
+const elMaskedBox = document.querySelector(".masked");
+const elApp       = document.querySelector(".app");
+const elConfetti  = document.getElementById("confetti");
+
+// --- State ---
 let gameId = null;
 let state = { masked: "", lives: 6, wrong: [], status: "playing" };
 const LETTERS = "abcdefghijklmnopqrstuvwxyz".split("");
 
-// === UI HELPERS ===
+// --- UI helpers ---
 function showMsg(text = "", cls = "") {
   elMsg.className = `message ${cls}`;
   elMsg.textContent = text;
@@ -85,14 +96,13 @@ function gallowsFor(l) {
 }
 
 function render() {
-  elMasked.textContent = state.masked;         // masked is already spaced by backend ("_ _ _")
-  elLives.textContent  = state.lives;
-  elWrong.textContent  = (state.wrong || []).join(" ");
-  elGallows.textContent = gallowsFor(state.lives);
+  elMasked.textContent   = state.masked;                  // backend sends spaced string
+  elLives.textContent    = state.lives;
+  elWrong.textContent    = (state.wrong || []).join(" ");
+  elGallows.textContent  = gallowsFor(state.lives);
   updateKeyboard();
 }
 
-// On-screen keyboard
 function buildKeyboard() {
   elKeyboard.innerHTML = "";
   LETTERS.forEach(ch => {
@@ -108,24 +118,23 @@ function buildKeyboard() {
 function updateKeyboard() {
   const gameOver = state.status !== "playing";
   const wrongSet = new Set(state.wrong || []);
-  // For “correct” marking, we infer from visible letters in masked (not perfect but solid)
-  const maskedLetters = new Set(state.masked.replace(/\s+/g, "").split("").filter(c => c !== "_"));
+  // derive revealed letters from masked (remove spaces + underscores)
+  const revealed = new Set(state.masked.replace(/\s+/g, "").split("").filter(c => c !== "_"));
 
   document.querySelectorAll(".key").forEach(b => {
     const ch = b.dataset.key;
-    const used = wrongSet.has(ch) || maskedLetters.has(ch);
+    const used = wrongSet.has(ch) || revealed.has(ch);
     b.disabled = used || gameOver;
     b.classList.toggle("used", used);
-    b.classList.toggle("ok", maskedLetters.has(ch));
+    b.classList.toggle("ok", revealed.has(ch));
     b.classList.toggle("bad", wrongSet.has(ch));
   });
 
-  // Disable input when game is over
   elGuess.disabled = gameOver;
   btnGuess.disabled = gameOver;
 }
 
-// Tiny synth sounds (no files)
+// Sounds (no assets)
 let audioCtx;
 function playTone(freq = 440, dur = 0.08) {
   try {
@@ -136,9 +145,10 @@ function playTone(freq = 440, dur = 0.08) {
     gain.gain.value = 0.07;
     osc.connect(gain); gain.connect(audioCtx.destination);
     osc.start(); setTimeout(() => osc.stop(), dur * 1000);
-  } catch (e) { /* ignore */ }
+  } catch (_) {}
 }
 
+// Confetti (emoji)
 function emitConfetti(count = 24) {
   const EMO = ["🎉","✨","⭐","🎈","💥","🟣","🟡","🟢","🔷","🔶"];
   const w = window.innerWidth;
@@ -153,9 +163,9 @@ function emitConfetti(count = 24) {
   }
 }
 
-// === API CALLS ===
+// --- API ---
 async function apiNewGame() {
-  const res = await fetch(`${API_BASE}/games`, { method: "POST" });
+  const res = await fetch(`${API_BASE}/games`, { method: "POST", headers: { 'Authorization': `Bearer ${TOKEN}` } });
   if (!res.ok) throw new Error(`New game failed: ${res.status}`);
   return res.json();
 }
@@ -166,22 +176,32 @@ async function apiGuess(id, guess) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ guess })
   });
+  // include token
+  const headers = { "Content-Type": "application/json", 'Authorization': `Bearer ${TOKEN}` };
+  const res2 = await fetch(`${API_BASE}/games/${id}/guess`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ guess })
+  });
+  // use res2 in place of res below
+  if (!res2.ok) throw new Error(`Guess failed: ${res2.status}`);
+  return res2.json();
   if (!res.ok) throw new Error(`Guess failed: ${res.status}`);
   return res.json();
 }
 
-// === GAME FLOW ===
+// --- Game flow ---
 async function newGame() {
   try {
     const data = await apiNewGame();
     gameId = data.gameId;
-    state = data;
+    state  = data;
     showMsg("");
     elApp.classList.remove("flash-bad");
     render();
   } catch (e) {
-    showMsg("Backend not reachable. Is it running on :3001?", "bad");
     console.error(e);
+    showMsg("Backend not reachable. Is it running on :3001?", "bad");
   }
 }
 
@@ -190,15 +210,16 @@ async function submitGuess(raw) {
   const guess = String(raw || elGuess.value || "").trim().toLowerCase();
   if (!guess) return;
 
-  const before = { masked: state.masked, lives: state.lives };
+  const prevMasked = state.masked;
+  const prevLives  = state.lives;
 
   try {
     const data = await apiGuess(gameId, guess);
     state = data;
     render();
 
-    const improved = state.masked !== before.masked;
-    const lostLife = state.lives < before.lives;
+    const improved = state.masked !== prevMasked;
+    const lostLife = state.lives < prevLives;
 
     if (state.status === "won") {
       showMsg(`You got it!`, "ok");
@@ -207,8 +228,10 @@ async function submitGuess(raw) {
       setTimeout(() => elOverlay.classList.remove("show"), 800);
       playTone(880, .1); setTimeout(() => playTone(1175, .12), 120);
     } else if (state.status === "lost") {
-      showMsg(`Out of lives!`, "bad");
-      elApp.classList.add("flash-bad"); setTimeout(() => elApp.classList.remove("flash-bad"), 400);
+      const solution = state.solution || state.masked.replace(/\s+/g, "");
+      showMsg(`Out of lives! The word was "${solution}".`, "bad");
+      elApp.classList.add("flash-bad");
+      setTimeout(() => elApp.classList.remove("flash-bad"), 400);
       playTone(130, .12);
     } else {
       if (improved) {
@@ -217,33 +240,35 @@ async function submitGuess(raw) {
         showMsg(`Nice! '${guess}' is in the word.`, "ok");
         playTone(660, .08);
       } else if (lostLife) {
-        elApp.classList.add("shake"); setTimeout(() => elApp.classList.remove("shake"), 450);
-        elApp.classList.add("flash-bad"); setTimeout(() => elApp.classList.remove("flash-bad"), 200);
+        elApp.classList.add("shake");
+        setTimeout(() => elApp.classList.remove("shake"), 450);
+        elApp.classList.add("flash-bad");
+        setTimeout(() => elApp.classList.remove("flash-bad"), 200);
         showMsg(`Nope. '${guess}' is not in the word.`, "bad");
         playTone(220, .09);
       }
     }
   } catch (e) {
-    showMsg("Request failed. Check backend logs.", "bad");
     console.error(e);
+    showMsg("Request failed. Check backend logs.", "bad");
   } finally {
     elGuess.value = "";
     elGuess.focus();
   }
 }
 
-// === WIRING ===
+// --- Wiring ---
 btnGuess.addEventListener("click", () => submitGuess());
 btnReset.addEventListener("click", newGame);
 elGuess.addEventListener("keydown", (e) => { if (e.key === "Enter") submitGuess(); });
 
-// Type anywhere (unless focused in input)
+// Type letters anywhere (unless focused in input)
 window.addEventListener("keydown", (e) => {
   if (!/^[a-z]$/i.test(e.key)) return;
   if (document.activeElement === elGuess) return;
   submitGuess(e.key);
 });
 
-// Build UI + start
+// Boot
 buildKeyboard();
 newGame();

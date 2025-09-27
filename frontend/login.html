@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hangman — Login</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; display:flex; min-height:100vh; align-items:center; justify-content:center; }
+    .card { width:320px; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.08); }
+    input { width:100%; padding:8px; margin-top:8px; }
+    button { margin-top:12px; padding:8px 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Welcome</h2>
+    <p>Enter a username to start playing.</p>
+    <input id="username" placeholder="username" />
+    <button id="btn">Login</button>
+    <p id="msg"></p>
+  </div>
+  <script>
+    const elU = document.getElementById('username');
+    const btn = document.getElementById('btn');
+    const msg = document.getElementById('msg');
+    btn.addEventListener('click', async () => {
+      const username = (elU.value||'').trim();
+      if (!username) { msg.textContent='Enter a username'; return; }
+      try {
+        const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username }) });
+        if (!res.ok) throw new Error('Login failed');
+        const j = await res.json();
+        localStorage.setItem('hangman_token', j.token);
+        localStorage.setItem('hangman_user', j.username);
+        window.location = '/';
+      } catch (e) {
+        msg.textContent = e.message || 'Login error';
+      }
+    });
+  </script>
+</body>
+</html>
