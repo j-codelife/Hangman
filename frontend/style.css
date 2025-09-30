@@ -6,6 +6,35 @@
   --bad:#ff637d;  /* pink/red */
   --accent:#a78bfa;  /* purple */
   --accent2:#22c55e; /* green */
+
+  /* Light theme variables (default) */
+  --bg: #ffffff;
+  --fg: #111827;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --control-bg: #f3f4f6;
+  --control-fg: #111827;
+  --toggle-bg: rgba(0,0,0,0.06);
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --bg: #0b1220;
+  --fg: #e6eef8;
+  --muted: #9aa6b2;
+  --accent: #60a5fa;
+  --control-bg: #0f1724;
+  --control-fg: #e6eef8;
+  --toggle-bg: rgba(255,255,255,0.06);
+}
+
+/* Basic page styling */
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  margin: 0;
+  padding: 0;
 }
 
 *{box-sizing:border-box}
@@ -36,7 +65,7 @@ h1{ margin:0 0 14px; }
 
 .status{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start; }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre; }
-.info{ color:var(--muted); display:grid; gap:6px; margin-top:6px; }
+.info{ color:var(--muted); display:grid, gap:6px; margin-top:6px; }
 
 .word{ margin:18px 0; }
 .masked{
@@ -166,3 +195,38 @@ button.primary{
 }
 .login-message.ok{ color:var(--accent2); }
 .login-message.bad{ color:var(--bad); }
+
+/* Header + toggle */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+/* Theme toggle button */
+.theme-toggle button {
+  background: var(--toggle-bg);
+  color: var(--control-fg);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.theme-toggle button:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Small icon change based on theme via attribute (optional) */
+html[data-theme="dark"] .theme-toggle button::after {
+  content: " ☀️";
+  margin-left: 0.25rem;
+}
+html[data-theme="light"] .theme-toggle button::after {
+  content: " 🌙";
+  margin-left: 0.25rem;
+}

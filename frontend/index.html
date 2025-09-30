@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,7 +13,14 @@
 </head>
 <body>
   <main class="app">
-    <h1><span class="logo">Hangman</span></h1>
+    <header class="app-header">
+      <h1><span class="logo">Hangman</span></h1>
+
+      <!-- Theme toggle -->
+      <div class="theme-toggle">
+        <button id="themeToggle" aria-pressed="false" aria-label="Switch to dark mode" title="Toggle theme">🌙</button>
+      </div>
+    </header>
 
     <section class="status">
       <div id="gallows" aria-live="polite" class="mono"></div>
@@ -44,6 +51,7 @@
 
   <div id="confetti"></div>
 
+  <script src="theme.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

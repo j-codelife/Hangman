@@ -1,4 +1,3 @@
-// ...existing code...
 /*
   Rewritten frontend script.js
   - Centralized API_BASE and apiFetch helper
@@ -297,4 +296,5 @@ if (btnReset) btnReset.addEventListener("click", () => newGame());
     showMsg("Please login to play", "bad");
   }
 })();
-// ...existing code...
+
+// Theme handling lives in frontend/theme.js so standalone pages (login) can reuse it

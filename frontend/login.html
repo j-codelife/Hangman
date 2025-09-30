@@ -1,33 +1,40 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hangman — Login</title>
+  <title>Login - Hangman</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="login-page">
-  <main class="login-card" role="main">
-    <header class="login-header">
-      <h1 class="logo">Hangman</h1>
-      <p class="login-tagline">Log in to keep your streak and unlock the gallows.</p>
+<body>
+  <main class="app login">
+    <header class="app-header">
+      <h1><span class="logo">Hangman</span></h1>
+      <div class="theme-toggle">
+        <button id="themeToggle" aria-pressed="false" aria-label="Switch to dark mode" title="Toggle theme">🌙</button>
+      </div>
     </header>
-    <pre class="login-gallows mono" aria-hidden="true">  +---+
+
+    <section class="login-box">
+      <h2 class="login-tagline">Log in to keep your streak and unlock the gallows.</h2>
+      <pre class="login-gallows mono" aria-hidden="true">  +---+
   |   |
       |
       |
       |
       |
 =========</pre>
-    <form class="login-form" novalidate>
-      <label for="username">Username</label>
-      <input id="username" class="login-input" name="username" type="text" autocomplete="nickname" maxlength="40" placeholder="e.g. codebreaker" required />
-      <button type="submit" class="primary">Enter the game</button>
-    </form>
-    <p id="msg" class="login-message" role="status" aria-live="polite"></p>
+      <form class="login-form" novalidate>
+        <label for="username">Username</label>
+        <input id="username" class="login-input" name="username" type="text" autocomplete="nickname" maxlength="40" placeholder="e.g. codebreaker" required />
+        <button type="submit" class="primary">Enter the game</button>
+      </form>
+      <p id="msg" class="login-message" role="status" aria-live="polite"></p>
+    </section>
   </main>
+  <script src="theme.js"></script>
   <script>
     const form = document.querySelector('.login-form');
     const elUsername = document.getElementById('username');
