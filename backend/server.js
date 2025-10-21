@@ -5,8 +5,9 @@
 import express from "express";
 import cors from "cors";
 import { nanoid } from "nanoid";
+import { pathToFileURL } from "url";
 
-const app = express();
+export const app = express();
 app.use(cors());
 app.use(express.json());
 
@@ -31,6 +32,10 @@ const WORDS = [
  * }
  */
 const games = new Map();
+export const gamesStore = games;
+export function resetGames() {
+  games.clear();
+}
 
 // ---- Helpers ----
 const maskWord = (w) => w.split("").map(ch => /[a-z]/i.test(ch) ? "_" : ch);
@@ -76,7 +81,7 @@ app.use((req, res, next) => {
   const token = auth.slice(7);
   try {
     req.user = Buffer.from(token, 'base64').toString('utf8');
-  } catch (_) {
+  } catch {
     return res.status(401).json({ error: 'Invalid token' });
   }
   return next();
@@ -154,5 +159,50 @@ app.post("/api/games/:id/guess", (req, res) => {
 // Health check (accept both /health and /api/health for frontend probes)
 app.get(["/health", "/api/health"], (_, res) => res.json({ ok: true }));
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`API on http://localhost:${PORT}`));
+const PORT = parseInt(process.env.PORT, 10) || 3001;
+
+const isMainModule = (() => {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return import.meta.url === pathToFileURL(entry).href;
+  } catch {
+    return false;
+  }
+})();
+
+let server;
+
+if (isMainModule) {
+  server = app.listen(PORT, () => {
+    console.log(`API on http://localhost:${PORT}`);
+  });
+
+  server.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      console.error(`Error: Port ${PORT} is already in use. Stop the process using that port or set a different PORT (e.g. export PORT=3002).`);
+      // Exit so nodemon doesn't keep trying to restart into the same error loop.
+      process.exit(1);
+    } else {
+      console.error('Server error:', err);
+      process.exit(1);
+    }
+  });
+
+  // graceful shutdown on Ctrl+C / termination
+  const shutdown = (signal) => {
+    console.log(`Received ${signal}. Shutting down server...`);
+    server.close(() => {
+      console.log('Server closed.');
+      process.exit(0);
+    });
+    // If it doesn't close within a short time, force exit
+    setTimeout(() => {
+      console.error('Forcing shutdown.');
+      process.exit(1);
+    }, 5000).unref();
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+}

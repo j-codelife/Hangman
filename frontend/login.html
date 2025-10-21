@@ -94,5 +94,41 @@
       }
     });
   </script>
+
+  <!--
+  Commands to see which process(es) are listening on port 3001:
+
+  macOS / Linux:
+    # show full details (process name, PID, user, port)
+    lsof -i :3001
+
+    # show only PIDs (good for piping to kill)
+    lsof -t -i :3001
+
+    # show TCP listeners explicitly (may require sudo)
+    sudo lsof -nP -iTCP:3001 -sTCP:LISTEN
+
+    # alternative using ss (shows PID/program)
+    ss -ltnp | grep 3001
+
+    # older alternative using netstat
+    netstat -anp | grep 3001
+
+    # once you have a PID (e.g. 23942), inspect the command that started it:
+    ps -p 23942 -o pid,user,cmd
+
+  Windows (PowerShell / CMD):
+    # find PID(s)
+    netstat -ano | findstr :3001
+
+    # then show process info (PowerShell)
+    Get-Process -Id <PID>
+
+    # or show command line (requires admin / wmic)
+    wmic process where processid=<PID> get ProcessId,CommandLine
+
+  Example from your earlier session: lsof -i :3001 showed "node 23942 …" — to see what that node process runs:
+    ps -p 23942 -o pid,user,cmd
+  -->
 </body>
 </html>

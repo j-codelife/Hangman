@@ -3,13 +3,24 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-  "start-frontend": "node ./dev-serve.js",
-    "start-backend": "node backend/server.js",
+    "start-frontend": "node ./dev-serve.js",
+    "start-backend": "npm --prefix backend run start",
     "dev": "npx concurrently \"npm:dev-backend\" \"npm:start-frontend\"",
-    "dev-backend": "cd backend && npm run dev"
+    "dev-backend": "npm --prefix backend run dev",
+    "test": "npm run test:backend",
+    "test:backend": "npm --prefix backend test",
+    "lint": "eslint \"frontend/**/*.js\" \"backend/**/*.js\" --max-warnings=0",
+    "lint:fix": "eslint \"frontend/**/*.js\" \"backend/**/*.js\" --fix",
+    "format": "prettier --write \"{frontend,backend}/**/*.{js,css,html,json}\"",
+    "format:check": "prettier --check \"{frontend,backend}/**/*.{js,css,html,json}\""
   },
   "devDependencies": {
+    "@eslint/js": "^9.11.1",
     "concurrently": "^8.2.0",
-    "http-server": "^14.1.1"
+    "eslint": "^9.11.1",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.8.0",
+    "http-server": "^14.1.1",
+    "prettier": "^3.3.3"
   }
 }

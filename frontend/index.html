@@ -22,11 +22,36 @@
       </div>
     </header>
 
+    <div id="loadingIndicator" class="loading-indicator" role="status" aria-live="polite" hidden>Loading…</div>
+
     <section class="status">
       <div id="gallows" aria-live="polite" class="mono"></div>
       <div class="info">
         <div>Lives: <span id="lives">6</span></div>
         <div>Wrong: <span id="wrong"></span></div>
+      </div>
+    </section>
+
+    <section class="stats-board" aria-label="Game stats">
+      <div class="stat-card">
+        <span class="stat-label">Games</span>
+        <span class="stat-value" id="statGames">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Wins</span>
+        <span class="stat-value" id="statWins">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Losses</span>
+        <span class="stat-value" id="statLosses">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Streak</span>
+        <span class="stat-value" id="statStreak">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Best</span>
+        <span class="stat-value" id="statBest">0</span>
       </div>
     </section>
 
@@ -43,7 +68,15 @@
         <button id="btnGuess">Guess</button>
         <button id="btnReset">New Game</button>
       </div>
-      <p id="message" role="status" class="message"></p>
+      <p id="message" role="status" aria-live="polite" class="message"></p>
+    </section>
+
+    <section class="history-panel" aria-label="Recent games">
+      <div class="history-header">
+        <h2 class="history-title">Recent words</h2>
+        <p class="history-note">Tracked locally for your account on this device.</p>
+      </div>
+      <ul id="historyList" class="history-list" aria-live="polite"></ul>
     </section>
 
     <div id="overlay" class="overlay" aria-hidden="true"></div>
