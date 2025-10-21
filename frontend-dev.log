@@ -1,5 +1,0 @@
-
-> hangman-web@1.0.0 start-frontend
-> node ./dev-serve.js
-
-Dev static server serving /Users/jvoidss/Hangman-web/frontend at http://0.0.0.0:8080
