@@ -10,9 +10,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "nanoid": "^5.0.7"
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.1",
+    "nanoid": "^5.0.7",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

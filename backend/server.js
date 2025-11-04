@@ -160,6 +160,7 @@ app.post("/api/games/:id/guess", (req, res) => {
 app.get(["/health", "/api/health"], (_, res) => res.json({ ok: true }));
 
 const PORT = parseInt(process.env.PORT, 10) || 3001;
+const HOST = process.env.HOST || '127.0.0.1';
 
 const isMainModule = (() => {
   const entry = process.argv[1];
@@ -174,8 +175,8 @@ const isMainModule = (() => {
 let server;
 
 if (isMainModule) {
-  server = app.listen(PORT, () => {
-    console.log(`API on http://localhost:${PORT}`);
+  server = app.listen(PORT, HOST, () => {
+    console.log(`API on http://${HOST}:${PORT}`);
   });
 
   server.on('error', (err) => {

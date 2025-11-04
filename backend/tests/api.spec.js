@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import request from 'supertest';
+import { createClient } from './helpers/http.js';
 
 import { app, resetGames, gamesStore } from '../server.js';
 
 const token = Buffer.from('tester').toString('base64');
-const auth = { Authorization: `Bearer ${token}` };
+const client = createClient(app);
+const auth = { authorization: `Bearer ${token}` };
 
 beforeEach(() => {
   resetGames();
@@ -12,18 +13,18 @@ beforeEach(() => {
 
 describe('Hangman API', () => {
   it('reports healthy status', async () => {
-    const res = await request(app).get('/api/health');
+    const res = await client.get('/api/health');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ ok: true });
   });
 
   it('rejects unauthorized calls to protected routes', async () => {
-    const res = await request(app).post('/api/games');
+    const res = await client.post('/api/games');
     expect(res.status).toBe(401);
   });
 
   it('creates a new game for authenticated users', async () => {
-    const res = await request(app).post('/api/games').set(auth).send();
+    const res = await client.post('/api/games', { headers: auth });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('gameId');
     expect(res.body).toHaveProperty('masked');
@@ -32,16 +33,16 @@ describe('Hangman API', () => {
   });
 
   it('accepts a correct letter guess and keeps lives intact', async () => {
-    const createRes = await request(app).post('/api/games').set(auth).send();
+    const createRes = await client.post('/api/games', { headers: auth });
     const { gameId } = createRes.body;
     const stored = gamesStore.get(gameId);
     expect(stored).toBeTruthy();
     const letter = stored.word[0];
 
-    const guessRes = await request(app)
-      .post(`/api/games/${gameId}/guess`)
-      .set(auth)
-      .send({ guess: letter });
+    const guessRes = await client.post(`/api/games/${gameId}/guess`, {
+      headers: auth,
+      body: { guess: letter },
+    });
 
     expect(guessRes.status).toBe(200);
     expect(guessRes.body.lives).toBe(createRes.body.lives);
@@ -50,14 +51,14 @@ describe('Hangman API', () => {
   });
 
   it('penalizes a wrong full-word guess', async () => {
-    const createRes = await request(app).post('/api/games').set(auth).send();
+    const createRes = await client.post('/api/games', { headers: auth });
     const { gameId } = createRes.body;
 
     const wrongWord = 'zzzz';
-    const guessRes = await request(app)
-      .post(`/api/games/${gameId}/guess`)
-      .set(auth)
-      .send({ guess: wrongWord });
+    const guessRes = await client.post(`/api/games/${gameId}/guess`, {
+      headers: auth,
+      body: { guess: wrongWord },
+    });
 
     expect(guessRes.status).toBe(200);
     expect(guessRes.body.lives).toBe(createRes.body.lives - 1);
