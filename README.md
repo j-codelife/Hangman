@@ -1,3 +1,5 @@
+TEST LINE 123
+
 # Hangman
 
 Simple Hangman web game with a frontend and a small Node.js backend.
@@ -68,4 +70,22 @@ app.get('/health', (req, res) => res.json({status: 'ok'}));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
 ```
+
+⭐️FEATURES
+- 🔤 Random word selection
+- ⌨️ On-screen / keyboard guessing
+- ❌ Wrong-guess counter
+- 🎨 Basic hangman drawing logic
+- �� Win/loss detection
+
+🚀 Future Improvements 
+- 🔧 Difficulty modes
+- 🧮 High score / stats tracking
+- 🌍 Backend-connected word lists
+- 🎵 Sound effects
+- 🖥️ UI redesign
+
+🙏 Author 
+Developed by Jordan Tisdol
+
 
