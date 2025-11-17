@@ -1,5 +1,3 @@
-TEST LINE 123
-
 # Hangman
 
 Simple Hangman web game with a frontend and a small Node.js backend.
@@ -76,7 +74,7 @@ app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
 - ⌨️ On-screen / keyboard guessing
 - ❌ Wrong-guess counter
 - 🎨 Basic hangman drawing logic
-- �� Win/loss detection
+- 🏆 Win/loss detection
 
 🚀 Future Improvements 
 - 🔧 Difficulty modes
@@ -87,5 +85,3 @@ app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
 
 🙏 Author 
 Developed by Jordan Tisdol
-
-
